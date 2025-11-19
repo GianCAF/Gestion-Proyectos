@@ -8,9 +8,12 @@ import { Row, Col, Dropdown, Spinner, Alert } from 'react-bootstrap';
 function ProjectList() {
     const [allProjects, setAllProjects] = useState([]);
     const [allProfessors, setAllProfessors] = useState([]);
+    const [professorNameMap, setProfessorNameMap] = useState({}); // Mapa {id: nombre}
     const [projectsToShow, setProjectsToShow] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // Mantenemos los estados de filtro
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterProfessor, setFilterProfessor] = useState('all');
     const [activeFilter, setActiveFilter] = useState('none');
@@ -20,27 +23,38 @@ function ProjectList() {
             try {
                 setLoading(true);
 
+                // 1. Obtener Proyectos
                 const projectsCol = collection(db, 'proyectos');
                 const projectSnapshot = await getDocs(projectsCol);
                 const projectsList = projectSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+                // 2. Obtener Profesores y crear el mapa de nombres
                 const professorsCol = collection(db, 'profesores');
                 const professorSnapshot = await getDocs(professorsCol);
                 const professorsList = professorSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-                // *** CAMBIO CLAVE: ASOCIACIÓN DE PROFESORES A PROYECTOS ***
-                // Para cada proyecto, busca todos los profesores que tienen el ID de ese proyecto en su arreglo idProyectos
+                const nameMap = {};
+                professorsList.forEach(p => {
+                    nameMap[p.id] = p.nombre;
+                });
+                setProfessorNameMap(nameMap);
+                setAllProfessors(professorsList);
+
+
+                // 3. ASOCIACIÓN CLAVE: Para cada proyecto, busca profesores con su ID
                 const projectsWithParticipants = projectsList.map(project => {
-                    const participantes = professorsList.filter(prof =>
-                        // Verifica si el arreglo idProyectos del profesor incluye el ID de este proyecto
-                        prof.idProyectos && prof.idProyectos.includes(project.id)
-                    );
+                    // Busca profesores donde el proyecto.id esté en su arreglo proyectosAsignados
+                    const participantes = professorsList.flatMap(prof => {
+                        const assignment = prof.proyectosAsignados?.find(p => p.id === project.id);
+                        if (assignment) {
+                            return [{ id: prof.id, nombre: prof.nombre, apellidos: prof.apellidos, rol: assignment.rol }];
+                        }
+                        return [];
+                    });
                     return { ...project, participantes };
                 });
 
                 setAllProjects(projectsWithParticipants);
-                setAllProfessors(professorsList);
-                // Inicialmente muestra todos los proyectos
                 setProjectsToShow(projectsWithParticipants);
 
             } catch (err) {
@@ -58,20 +72,19 @@ function ProjectList() {
     useEffect(() => {
         let filteredList = allProjects;
 
-        // Lógica para el filtro por ESTADO
         if (activeFilter === 'status' && filterStatus !== 'all') {
             filteredList = allProjects.filter(p => p.estado === filterStatus);
         }
 
-        // Lógica para el filtro por PROFESOR
         else if (activeFilter === 'professor' && filterProfessor !== 'all') {
-            // Filtra por los proyectos donde el profesor con el ID seleccionado es participante
+            const selectedProfId = filterProfessor;
+            // Filtra por los proyectos donde el ID del profesor es un participante
             filteredList = allProjects.filter(project =>
-                project.participantes.some(prof => prof.id === filterProfessor)
+                project.participantes.some(prof => prof.id === selectedProfId)
             );
         }
 
-        // Si no hay filtro activo o se seleccionó 'Todos' en ambos, muestra todos.
+        // Si no hay filtro activo, mostrar todos.
         if (activeFilter === 'none' || (filterStatus === 'all' && filterProfessor === 'all')) {
             filteredList = allProjects;
         }
@@ -83,7 +96,6 @@ function ProjectList() {
     if (loading) return <Spinner animation="border" role="status"><span className="visually-hidden">Cargando...</span></Spinner>;
     if (error) return <Alert variant="danger">{error}</Alert>;
 
-    // Función auxiliar para obtener el nombre del filtro de profesor
     const getProfessorFilterName = () => {
         if (filterProfessor === 'all') return 'Todos';
         const prof = allProfessors.find(p => p.id === filterProfessor);
@@ -94,58 +106,37 @@ function ProjectList() {
         <div className="mt-4">
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h2>Nuestros Proyectos</h2>
+                {/* Controles de Filtro */}
                 <div className="d-flex">
-
-                    {/* Filtro por estado */}
                     <Dropdown className="me-2">
+                        {/* ... (Botón y lógica de filtro por estado) ... */}
                         <Dropdown.Toggle
                             variant="secondary"
                             id="dropdown-status-filter"
-                            // Deshabilita si el filtro de profesor está activo y no está en 'all'
                             disabled={activeFilter === 'professor' && filterProfessor !== 'all'}
                         >
-                            Filtrar por estado: {filterStatus.replace(/_/g, ' ')}
+                            Filtrar por estado: {filterStatus.replace('con_adeudos', 'Con adeudos').replace(/_/g, ' ')}
                         </Dropdown.Toggle>
                         <Dropdown.Menu>
-                            <Dropdown.Item onClick={() => {
-                                setFilterStatus('all');
-                                setFilterProfessor('all');
-                                setActiveFilter('none'); // Ningún filtro por defecto
-                            }}>Todos</Dropdown.Item>
-                            <Dropdown.Item onClick={() => {
-                                setFilterStatus('activo');
-                                setFilterProfessor('all');
-                                setActiveFilter('status');
-                            }}>Activos</Dropdown.Item>
-                            <Dropdown.Item onClick={() => {
-                                setFilterStatus('por_comenzar');
-                                setFilterProfessor('all');
-                                setActiveFilter('status');
-                            }}>Por comenzar</Dropdown.Item>
-                            <Dropdown.Item onClick={() => {
-                                setFilterStatus('terminado');
-                                setFilterProfessor('all');
-                                setActiveFilter('status');
-                            }}>Terminados</Dropdown.Item>
+                            {/* Opciones de filtro de estado (activo, con_adeudos, terminado, todos) */}
+                            <Dropdown.Item onClick={() => { setFilterStatus('all'); setFilterProfessor('all'); setActiveFilter('none'); }}>Todos</Dropdown.Item>
+                            <Dropdown.Item onClick={() => { setFilterStatus('activo'); setFilterProfessor('all'); setActiveFilter('status'); }}>Activo</Dropdown.Item>
+                            <Dropdown.Item onClick={() => { setFilterStatus('con_adeudos'); setFilterProfessor('all'); setActiveFilter('status'); }}>Con adeudos</Dropdown.Item>
+                            <Dropdown.Item onClick={() => { setFilterStatus('terminado'); setFilterProfessor('all'); setActiveFilter('status'); }}>Terminados</Dropdown.Item>
                         </Dropdown.Menu>
                     </Dropdown>
 
-                    {/* Filtro por profesor */}
                     <Dropdown>
+                        {/* ... (Botón y lógica de filtro por profesor) ... */}
                         <Dropdown.Toggle
                             variant="secondary"
                             id="dropdown-professor-filter"
-                            // Deshabilita si el filtro de estado está activo y no está en 'all'
                             disabled={activeFilter === 'status' && filterStatus !== 'all'}
                         >
                             Filtrar por profesor: {getProfessorFilterName()}
                         </Dropdown.Toggle>
                         <Dropdown.Menu>
-                            <Dropdown.Item onClick={() => {
-                                setFilterProfessor('all');
-                                setFilterStatus('all');
-                                setActiveFilter('none'); // Ningún filtro por defecto
-                            }}>Todos los profesores</Dropdown.Item>
+                            <Dropdown.Item onClick={() => { setFilterProfessor('all'); setFilterStatus('all'); setActiveFilter('none'); }}>Todos los profesores</Dropdown.Item>
                             {allProfessors.map(prof => (
                                 <Dropdown.Item key={prof.id} onClick={() => {
                                     setFilterProfessor(prof.id);

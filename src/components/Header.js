@@ -37,18 +37,18 @@ function Header({ user, onLoginSuccess }) { // Recibe el usuario autenticado y u
     };
 
     return (
-        <Navbar bg="dark" variant="dark" expand="lg" className="mb-4">
+        <Navbar expand="lg" className="mb-4 bg-vino"> {/* CAMBIO D) */}
             <div className="container-fluid">
                 <Navbar.Brand as={Link} to="/" className="d-flex align-items-center">
-                    <img src="logo192.png" width="30" height="30" className="d-inline-block align-top me-2" alt="Logo 1" />
-                    <img src="logo512.png" width="30" height="30" className="d-inline-block align-top me-2" alt="Logo 2" />
+                    <img src="logo_itsoeh.jpg" width="90" height="30" className="d-inline-block align-top me-2" alt="Logo 1" />
+                    <img src="logo_gestion.jpg" width="60" height="60" className="d-inline-block align-top me-2" alt="Logo 2" />
                     Gestión Empresarial
                 </Navbar.Brand>
                 <Navbar.Toggle aria-controls="basic-navbar-nav" />
                 <Navbar.Collapse id="basic-navbar-nav">
                     <Nav className="me-auto">
                         <Nav.Link as={Link} to="/">Inicio</Nav.Link>
-                        <Nav.Link href="https://www.tu-escuela.edu" target="_blank">Página de la Escuela</Nav.Link>
+                        <Nav.Link href="https://itsoeh.edu.mx/front/" target="_blank">Página de la Escuela</Nav.Link>
                     </Nav>
                     <Nav>
                         {user ? (

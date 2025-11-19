@@ -1,4 +1,5 @@
 // src/components/ProfessorTable.js
+
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebaseConfig';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
@@ -7,17 +8,16 @@ import ProfessorForm from './ProfessorForm';
 
 function ProfessorTable() {
     const [professors, setProfessors] = useState([]);
-    const [projectsMap, setProjectsMap] = useState({}); // Mapa para buscar nombres por ID
+    const [projectsMap, setProjectsMap] = useState({}); // Mapa para IDs a Nombres de Proyecto
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
     const [currentProfessor, setCurrentProfessor] = useState(null);
 
-    const fetchData = async () => {
+    const fetchProfessors = async () => {
         try {
             setLoading(true);
-
-            // 1. Obtener Proyectos y crear un mapa {id: nombre}
+            // 1. Obtener Proyectos para el mapa de nombres
             const projectsCol = collection(db, 'proyectos');
             const projectSnapshot = await getDocs(projectsCol);
             const map = {};
@@ -29,28 +29,32 @@ function ProfessorTable() {
             // 2. Obtener Profesores
             const professorsCol = collection(db, 'profesores');
             const professorSnapshot = await getDocs(professorsCol);
-            const professorsList = professorSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
+            const professorsList = professorSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                // Asegurar que el campo exista y sea un arreglo por si hay datos antiguos
+                proyectosAsignados: doc.data().proyectosAsignados || []
+            }));
             setProfessors(professorsList);
         } catch (err) {
-            console.error("Error fetching data:", err);
-            setError("Error al cargar los datos.");
+            console.error("Error fetching professors:", err);
+            setError("Error al cargar los profesores.");
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchData();
+        fetchProfessors();
     }, []);
 
     const handleDelete = async (id) => {
         if (window.confirm("¿Estás seguro de que quieres eliminar este profesor?")) {
             try {
                 await deleteDoc(doc(db, 'profesores', id));
-                fetchData();
+                fetchProfessors();
             } catch (err) {
-                console.error("Error eliminando profesor:", err);
+                console.error("Error deleting professor:", err);
                 setError("Error al eliminar el profesor.");
             }
         }
@@ -62,17 +66,16 @@ function ProfessorTable() {
     };
 
     const handleFormSubmit = () => {
-        fetchData();
-        setShowEditModal(false);
-        setCurrentProfessor(null);
+        // Vuelve a cargar los datos después de registrar o editar
+        fetchProfessors();
     };
 
-    if (loading) return <Spinner animation="border" role="status"><span className="visually-hidden">Cargando...</span></Spinner>;
+    if (loading) return <Spinner animation="border" />;
     if (error) return <Alert variant="danger">{error}</Alert>;
 
     return (
-        <div className="mt-4">
-            <h3>Gestionar Profesores</h3>
+        <div className="table-responsive">
+            <h2>Gestión de Profesores</h2>
             <Table striped bordered hover responsive>
                 <thead>
                     <tr>
@@ -80,7 +83,8 @@ function ProfessorTable() {
                         <th>Apellidos</th>
                         <th>Edad</th>
                         <th>Materia</th>
-                        <th>Proyectos Asignados</th> {/* CAMBIO: Título de la columna */}
+                        <th>Matrícula</th>
+                        <th>Proyectos Asignados (Rol)</th> {/* <--- CAMBIO DE ENCABEZADO */}
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -91,16 +95,25 @@ function ProfessorTable() {
                             <td>{professor.apellidos}</td>
                             <td>{professor.edad}</td>
                             <td>{professor.materia}</td>
-                            {/* CAMBIO: Renderiza múltiples badges para cada proyecto asignado */}
+                            <td>{professor.matricula}</td>
                             <td>
-                                {professor.idProyectos && professor.idProyectos.length > 0 ? (
-                                    professor.idProyectos.map(projectId => (
-                                        <Badge key={projectId} bg="info" className="me-1 mb-1">
-                                            {projectsMap[projectId] || projectId}
-                                        </Badge>
+                                {/* Mostrar la lista de proyectos y su rol */}
+                                {professor.proyectosAsignados && professor.proyectosAsignados.length > 0 ? (
+                                    professor.proyectosAsignados.map((assignment, index) => (
+                                        <div key={index} className="mb-1">
+                                            {projectsMap[assignment.id] || 'Proyecto Desconocido'}
+                                            {' '}
+                                            <Badge
+                                                // Color distintivo para el Líder
+                                                bg={assignment.rol === 'lider' ? 'warning' : 'secondary'}
+                                                style={{ fontSize: '0.8em', textTransform: 'capitalize' }}
+                                            >
+                                                {assignment.rol}
+                                            </Badge>
+                                        </div>
                                     ))
                                 ) : (
-                                    <Badge bg="secondary">N/A</Badge>
+                                    'N/A'
                                 )}
                             </td>
                             <td>

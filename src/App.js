@@ -83,9 +83,13 @@ function App() {
         <Routes>
           <Route path="/" element={
             <>
-              <h1>Bienvenido a Gestión Empresarial</h1>
-              <p>Esta es tu plataforma para la gestión de proyectos y profesores. Utiliza los enlaces superiores para navegar.</p>
-              <ProjectList />
+              {/* Div para el fondo de logos */}
+              <div id="main-page-content"></div>
+              <div className="page-content-wrapper">
+                <h1>Bienvenido a Gestión Empresarial</h1>
+                <p>Esta es tu plataforma para la gestión de proyectos y profesores. Utiliza los enlaces superiores para navegar.</p>
+                <ProjectList />
+              </div>
             </>
           } />
           <Route path="/crud" element={

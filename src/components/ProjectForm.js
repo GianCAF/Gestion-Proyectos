@@ -84,7 +84,7 @@ function ProjectForm({ show, handleClose, projectToEdit, onProjectSubmit }) {
                         <Form.Label>Estado del Proyecto</Form.Label>
                         <Form.Select value={estado} onChange={(e) => setEstado(e.target.value)}>
                             <option value="activo">Activo</option>
-                            <option value="por_comenzar">Por comenzar</option>
+                            <option value="con_adeudos">Con adeudos</option>
                             <option value="terminado">Terminado</option>
                         </Form.Select>
                     </Form.Group>
